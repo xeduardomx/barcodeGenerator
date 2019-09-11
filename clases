@@ -1,0 +1,508 @@
+package com.equifax.barcodegenerator.service;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Base64;
+
+import org.springframework.stereotype.Service;
+
+import com.equifax.barcodegenerator.conf.BarcodeFormats;
+import com.equifax.barcodegenerator.dto.BarcodeRequest;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+
+/**
+* The class contains only one method that encodes a text string based on 64.
+* 
+* @author  Eduardo Mendoza (exm200)
+* @version 1.0
+* @since   2019-07-01
+*/
+@Service
+public class BarcodeService {
+	/**
+	 * Exposes an http endpoint <b>(REST)</b>, using the <b>post</b> method.<br>
+	 * Call the <b>barcodeService</b> class and send data to generate a coded
+	 * barcode.<br>
+	 * Please see the {@link com.equifax.barcodegenerator.service.BarcodeService}
+	 * class to know its structure.
+	 * 
+	 * @param receives a BarcodeRequest type object with the characteristics to
+	 *                 generate the bar code.<br>
+	 *                 Please see the
+	 *                 {@link com.equifax.barcodegenerator.dto.BarcodeRequest} class
+	 *                 to know its structure
+	 * 
+	 * @return an string with the barcode encoded in base64.
+	 * @throws IOException 
+	 * @throws WriterException 
+	 */
+	public String generateBarcode(BarcodeRequest request) throws WriterException, IOException{
+		BitMatrix matrix = null;
+    	byte[] res = null;
+    	ByteArrayOutputStream out = new ByteArrayOutputStream();
+    	String barcodeData=request.getBarcodeData();
+    	String barcodeType = getBarcodeType(request);
+    	String imgType = getImgType(request);
+        int height = getHeight(request);
+    	int width = getWidth(request);
+    	BarcodeFormats barcodeFormats = BarcodeFormats.getInstance();
+    	barcodeFormats.Registerformat(barcodeType);
+
+    	matrix = barcodeFormats.getWriter().encode(barcodeData, barcodeFormats.getBarcodeFormat(), width, height);
+    	MatrixToImageWriter.writeToStream(matrix, imgType, out);
+    	res = Base64.getEncoder().encode(out.toByteArray());
+    	
+    	return new String(res);
+	}
+
+	
+	private int getWidth(BarcodeRequest request) {
+		return (request.getWidth()>0) ?  request.getWidth() : BarcodeRequest.WIDTH_DEFAULT;
+	}
+
+	private int getHeight(BarcodeRequest request) {
+		return (request.getHeight()>0) ?  request.getHeight() : BarcodeRequest.HEIGHT_DEFAULT;
+	}
+
+	private String getImgType(BarcodeRequest request) {
+		return (!request.getImgType().isEmpty()) ?  request.getImgType() : BarcodeRequest.IMGTYPE_DEFAULT;
+	}
+
+	private String getBarcodeType(BarcodeRequest request) {
+		return (!request.getBarcodeType().isEmpty()) ?  request.getBarcodeType() : BarcodeRequest.BARCODETYPE_DEFAULT;
+	}
+}
+
+
+package com.equifax.barcodegenerator.dto;
+
+import javax.validation.constraints.Digits;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
+
+/**
+ * <b>BarcodeRequest</b> is the DTO that we will use as <b>requestBody</b>.<br>
+ * Receive the data, validate it and transfer it between the different
+ * classes.<br>
+ * Defines the constants that will be used as the default value.
+ * 
+ * @author Eduardo Mendoza (exm200)
+ * @version 1.0
+ * @since 2019-07-01
+ */
+public class BarcodeRequest {
+	public static final String BARCODETYPE_DEFAULT = "QR";
+	public static final int HEIGHT_DEFAULT = 200;
+	public static final int WIDTH_DEFAULT = 200;
+	public static final String IMGTYPE_DEFAULT = "png";
+	private static final int MINCHARACTERS = 5;
+	private static final int MAXCHARACTERS = 500;
+	private static final int MAXDIGIT = 4;
+	private static final String IMGTYPEACEPTED = "|png|jpg|gif";
+	private static final String BARCODETYPEACEPTED = "|EAN8|EAN13|CODE39|CODE128|CODABAR|QR|ITF";
+	
+	/**
+	 * @param barcodeType type of bar code that is going to be generated
+	 *                    (EAN8|EAN13|CODE39|CODE128|CODABAR|QR|ITF).
+	 */
+	@Pattern(regexp="("+BARCODETYPEACEPTED+")", message="Possible code types ("+BARCODETYPEACEPTED+")")
+	String barcodeType="";
+	
+	/**
+	 * @param barcodeData Data that will be encoded, wait for text string.
+	 */
+	@NotNull(message="Data to encoded is required")
+	@NotBlank(message="Data to encoded is required")
+	@NotEmpty(message="Data to encoded is required")
+	@Size(min=MINCHARACTERS, max=MAXCHARACTERS, message="value between "+MINCHARACTERS+" and "+MAXCHARACTERS+" characters")
+	String barcodeData;
+	
+	/**
+	 * @param height height of bar code that is going to be generated.
+	 */
+	@Digits(integer = MAXDIGIT, fraction = 0, message = "maximum ("+MAXDIGIT+") digitod")
+    int height=0;
+	
+	/**
+	 * @param width width of bar code that is going to be generated.
+	 */
+	@Digits(integer = MAXDIGIT, fraction = 0, message = "maximum ("+MAXDIGIT+") digitod")
+	int width=0;
+	
+	/**
+	 * @param imgType Type of image to generate the barcode (png|jpg|gif).
+	 */
+	@Pattern(regexp="("+IMGTYPEACEPTED+")", message="possible types of image extension ("+IMGTYPEACEPTED+")")
+	String imgType="";
+	
+	public String getBarcodeType() {
+		return barcodeType;
+	}
+	public void setBarcodeType(String barcodeType) {
+		this.barcodeType = barcodeType;
+	}
+	public String getBarcodeData() {
+		return barcodeData;
+	}
+	public void setBarcodeData(String barcodeData) {
+		this.barcodeData = barcodeData;
+	}
+	public int getHeight() {
+		return height;
+	}
+	public void setHeight(int height) {
+		this.height = height;
+	}
+	public int getWidth() {
+		return width;
+	}
+	public void setWidth(int width) {
+		this.width = width;
+	}
+	public String getImgType() {
+		return imgType;
+	}
+	public void setImgType(String imgType) {
+		this.imgType = imgType;
+	}
+}
+
+
+package com.equifax.barcodegenerator.dto;
+
+/**
+ * <b>BarcodeResponse</b> is the DTO that we will use as
+ * <b>responseBody</b>.<br>
+ * Used to return the encoded barcode to base64.
+ * 
+ * @author Eduardo Mendoza (exm200)
+ * @version 1.0
+ * @since 2019-07-01
+ */
+public class BarcodeResponse {
+	/**
+	 * @encodedBarcode stores the encoded barcode to base64, is a text string.
+	 */
+	private String encodedBarcode = "";
+
+	public BarcodeResponse(String encodedBarcode) {
+		this.encodedBarcode = encodedBarcode;
+	}
+
+	public String getEncodedBarcode() {
+		return encodedBarcode;
+	}
+
+	public void setEncodedBarcode(String encodedBarcode) {
+		this.encodedBarcode = encodedBarcode;
+	}
+}
+
+
+package com.equifax.barcodegenerator.conf;
+
+import static com.google.common.base.Predicates.or;
+import static springfox.documentation.builders.PathSelectors.regex;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.google.common.base.Predicate;
+
+import springfox.documentation.builders.ApiInfoBuilder;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+
+/**
+ * implementation of sss for documentation of the apis.<br>
+ * Please see the {@link {basedir}/v2/api-docs?group=public-api} to json with
+ * API documentation based on<br>
+ * Please see the {@link {basedir}/swagger-ui.html#} to see a graphical
+ * interface with the documented api
+ * 
+ * @author Eduardo Mendoza (exm200)
+ * @version 1.0
+ * @since 2019-07-18
+ */
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+	 
+	@Bean
+	public Docket postsApi() {
+		return new Docket(DocumentationType.SWAGGER_2).groupName("public-api")
+				.apiInfo(apiInfo()).select().paths(postPaths()).build();
+	}
+
+	private Predicate<String> postPaths() {
+		return or(regex("/barcode.*"), regex("/barcode.*"));
+	}
+
+	private ApiInfo apiInfo() {
+		return new ApiInfoBuilder().title("Barcode generator")
+				.description("Bar code generator for equifax")
+				.licenseUrl("https://efxcentral.eis.equifax.com").version("1.0").build();
+	}
+}
+
+
+package com.equifax.barcodegenerator.conf;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.Writer;
+import com.google.zxing.oned.CodaBarWriter;
+import com.google.zxing.oned.Code128Writer;
+import com.google.zxing.oned.Code39Writer;
+import com.google.zxing.oned.EAN13Writer;
+import com.google.zxing.oned.EAN8Writer;
+
+/**
+ * BarcodeFormat and Writer are stored in this class, it receives a type of bar
+ * code as a <b>text string parameter</b> and has methods that return a Writer
+ * and a BarcodeFormat object.<br>
+ * <b>Use singleton pattern instanciention </b>
+ * 
+ * @author Eduardo Mendoza (exm200)
+ * @version 1.0
+ * @since 2019-07-24
+ */
+public class BarcodeFormats {
+	/**
+	 * @param type of bar code.
+	 */
+	private String type="";
+	private static BarcodeFormats instance;
+	private Map<String, ArrayList<Object>> formats = new HashMap<String, ArrayList<Object>>();
+	
+	
+	private BarcodeFormats() {
+	}
+	
+	public static BarcodeFormats getInstance() {
+		if (instance==null) {
+			instance= new BarcodeFormats();
+		}
+		return instance;
+	}
+
+	/**
+	 * Registration of barcode formats.<br>
+	 * To add more formats use this template.<br>
+	 * formats.put("STRING TYPE",new ArrayList<Object>(Arrays.asList(new TYPE-WRITER(), BarcodeFormat.CODE-FORMAT)));
+	 */
+	public void Registerformat(String barcodeType) {
+		this.type = barcodeType;
+		
+		formats.put("EAN8",new ArrayList<Object>(Arrays.asList(new EAN8Writer(), BarcodeFormat.EAN_8)));
+		formats.put("EAN13",new ArrayList<Object>(Arrays.asList(new EAN13Writer(), BarcodeFormat.EAN_13)));
+		formats.put("CODE39",new ArrayList<Object>(Arrays.asList(new Code39Writer(), BarcodeFormat.CODE_39)));
+		formats.put("CODE128",new ArrayList<Object>(Arrays.asList(new Code128Writer(), BarcodeFormat.CODE_128)));
+		formats.put("CODABAR",new ArrayList<Object>(Arrays.asList(new CodaBarWriter(), BarcodeFormat.CODABAR)));
+		formats.put("QR",new ArrayList<Object>(Arrays.asList(new MultiFormatWriter(), BarcodeFormat.QR_CODE)));
+		formats.put("ITF",new ArrayList<Object>(Arrays.asList(new MultiFormatWriter(), BarcodeFormat.ITF)));
+		//uncomment next line to add new format.
+		//formats.put("STRING TYPE",new ArrayList<Object>(Arrays.asList(new TYPE-WRITER(), new BarcodeFormat.CODE-FORMAT)));
+	}
+	
+	private String getType() {
+		return type;
+	}
+	
+	/**
+	 * Method to obtain the Writer object according to the type of bar code with
+	 * which the class was initiated
+	 *
+	 * @return an object of type Writer.
+	 */
+	public Writer getWriter() {
+		return (Writer) formats.get(this.getType()).get(0);
+	}
+
+	/**
+	 * Method to obtain the BarcodeFormat object according to the type of bar code
+	 * with which the class was initiated
+	 *
+	 * @return an object of type Writer.
+	 */
+	public BarcodeFormat getBarcodeFormat() {
+		return (BarcodeFormat) formats.get(this.getType()).get(1);
+	}
+}
+
+
+package com.equifax.barcodegenerator.conf;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.Writer;
+import com.google.zxing.oned.CodaBarWriter;
+import com.google.zxing.oned.Code128Writer;
+import com.google.zxing.oned.Code39Writer;
+import com.google.zxing.oned.EAN13Writer;
+import com.google.zxing.oned.EAN8Writer;
+
+/**
+ * BarcodeFormat and Writer are stored in this class, it receives a type of bar
+ * code as a <b>text string parameter</b> and has methods that return a Writer
+ * and a BarcodeFormat object.<br>
+ * <b>Use singleton pattern instanciention </b>
+ * 
+ * @author Eduardo Mendoza (exm200)
+ * @version 1.0
+ * @since 2019-07-24
+ */
+public class BarcodeFormats {
+	/**
+	 * @param type of bar code.
+	 */
+	private String type="";
+	private static BarcodeFormats instance;
+	private Map<String, ArrayList<Object>> formats = new HashMap<String, ArrayList<Object>>();
+	
+	
+	private BarcodeFormats() {
+	}
+	
+	public static BarcodeFormats getInstance() {
+		if (instance==null) {
+			instance= new BarcodeFormats();
+		}
+		return instance;
+	}
+
+	/**
+	 * Registration of barcode formats.<br>
+	 * To add more formats use this template.<br>
+	 * formats.put("STRING TYPE",new ArrayList<Object>(Arrays.asList(new TYPE-WRITER(), BarcodeFormat.CODE-FORMAT)));
+	 */
+	public void Registerformat(String barcodeType) {
+		this.type = barcodeType;
+		
+		formats.put("EAN8",new ArrayList<Object>(Arrays.asList(new EAN8Writer(), BarcodeFormat.EAN_8)));
+		formats.put("EAN13",new ArrayList<Object>(Arrays.asList(new EAN13Writer(), BarcodeFormat.EAN_13)));
+		formats.put("CODE39",new ArrayList<Object>(Arrays.asList(new Code39Writer(), BarcodeFormat.CODE_39)));
+		formats.put("CODE128",new ArrayList<Object>(Arrays.asList(new Code128Writer(), BarcodeFormat.CODE_128)));
+		formats.put("CODABAR",new ArrayList<Object>(Arrays.asList(new CodaBarWriter(), BarcodeFormat.CODABAR)));
+		formats.put("QR",new ArrayList<Object>(Arrays.asList(new MultiFormatWriter(), BarcodeFormat.QR_CODE)));
+		formats.put("ITF",new ArrayList<Object>(Arrays.asList(new MultiFormatWriter(), BarcodeFormat.ITF)));
+		//uncomment next line to add new format.
+		//formats.put("STRING TYPE",new ArrayList<Object>(Arrays.asList(new TYPE-WRITER(), new BarcodeFormat.CODE-FORMAT)));
+	}
+	
+	private String getType() {
+		return type;
+	}
+	
+	/**
+	 * Method to obtain the Writer object according to the type of bar code with
+	 * which the class was initiated
+	 *
+	 * @return an object of type Writer.
+	 */
+	public Writer getWriter() {
+		return (Writer) formats.get(this.getType()).get(0);
+	}
+
+	/**
+	 * Method to obtain the BarcodeFormat object according to the type of bar code
+	 * with which the class was initiated
+	 *
+	 * @return an object of type Writer.
+	 */
+	public BarcodeFormat getBarcodeFormat() {
+		return (BarcodeFormat) formats.get(this.getType()).get(1);
+	}
+}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.1.6.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.equifax</groupId>
+	<artifactId>barcodegenerator</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>barcodegenerator</name>
+	<description>Demo project for Spring Boot</description>
+
+	<properties>
+		<java.version>1.8</java.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.3.3</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>javase</artifactId>
+			<version>3.3.3</version>
+		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/commons-codec/commons-codec -->
+		<dependency>
+		    <groupId>commons-codec</groupId>
+		    <artifactId>commons-codec</artifactId>
+		 </dependency>
+		 
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-swagger2</artifactId>
+			<version>2.4.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-swagger-ui</artifactId>
+			<version>2.4.0</version>
+		</dependency>
+	
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+
