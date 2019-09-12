@@ -506,3 +506,38 @@ public class BarcodeFormats {
 
 </project>
 
+
+dockerfile________________
+
+FROM debian:stable
+
+
+
+EXPOSE 8080
+
+# Configure proxy
+ENV http_proxy 
+ENV https_proxy 
+ENV HTTP_PROXY 
+ENV HTTPS_PROXY 
+
+# Deploy Cloud Services CA certificate
+ADD Cloud_Services_Root_CA.crt /usr/local/share/ca-certificates/
+USER root
+RUN apt-get update
+RUN apt-get install -y ca-certificates
+RUN update-ca-certificates
+
+# Install java 8
+RUN apt-get install -y openjdk-8-jre-headless
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
+
+# Copy application's JAR
+#COPY ${JAR_FILE} /path/to/the/jar/barcode-generator.jar
+#COPY Test.class /Test.class
+COPY ./target/*.jar /barcode.jar
+
+# Start the application
+CMD java -jar /barcode.jar
+
